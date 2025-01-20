@@ -21,47 +21,7 @@ int foreach_phdr(void *map_start, void (*func)(Elf32_Phdr *, int), int arg) {
 
     return 0;
 }
-void load_phdr(Elf32_Phdr *phdr, int fd) {
-    if (phdr->p_type == PT_LOAD) {
-        // Align virtual address and file offset
-        void *vaddr = (void *)(phdr->p_vaddr & 0xfffff000);
-        size_t offset = phdr->p_offset & 0xfffff000;
-        size_t padding = phdr->p_vaddr & 0xfff;
-        size_t size = phdr->p_memsz + padding;
 
-        // Get protection flags
-        int prot = 0;
-        if (phdr->p_flags & PF_R) prot |= PROT_READ;
-        if (phdr->p_flags & PF_W) prot |= PROT_WRITE;
-        if (phdr->p_flags & PF_X) prot |= PROT_EXEC;
-
-        // Map the segment into memory
-        void *mapped = mmap(vaddr, size, prot, MAP_PRIVATE | MAP_FIXED, fd, offset);
-        if (mapped == MAP_FAILED) {
-            perror("Error mapping segment");
-            exit(1);
-        }
-
-        // Zero out the BSS section if applicable
-        if (phdr->p_memsz > phdr->p_filesz) {
-            size_t bss_size = phdr->p_memsz - phdr->p_filesz;
-            void *bss_start = (char *)mapped + padding + phdr->p_filesz;
-            memset(bss_start, 0, bss_size);
-        }
-
-        // Print details about the mapped segment
-        char flags[5];
-        flags[0] = (phdr->p_flags & PF_R) ? 'R' : ' ';
-        flags[1] = (phdr->p_flags & PF_W) ? 'W' : ' ';
-        flags[2] = (phdr->p_flags & PF_X) ? 'X' : ' ';
-        flags[3] = '\0';
-
-        printf(" LOAD  0x%06lx  0x%08lx  0x%08lx  0x%05lx   0x%05lx   %s  %ld\n",
-               (unsigned long)phdr->p_offset, (unsigned long)phdr->p_vaddr,
-               (unsigned long)phdr->p_paddr, (unsigned long)phdr->p_filesz,
-               (unsigned long)phdr->p_memsz, flags, (unsigned long)phdr->p_align);
-    }
-}
 
 // Function to get mmap protection flags
 int get_mmap_prot(uint32_t p_flags) {
@@ -131,7 +91,7 @@ void map_segment(Elf32_Phdr *phdr, int fd) {
                (unsigned long)phdr->p_memsz, flags, (unsigned long)phdr->p_align);
 
         printf("----Protection flags: %d\n", prot);
-        printf("----Mapping flags: %d\n\n", MAP_PRIVATE | MAP_FIXED);
+        printf("----Mapping flags: %d\n\n", MAP_PRIVATE);
     }
 }
 
